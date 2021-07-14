@@ -55,14 +55,32 @@ end_of_week_date<-seq(as.Date("2021/4/7"), as.Date("2021/7/12"), by = "week") #c
 weeklycases<-rollapply(covid_CT_wide$New_Cases, width=7, FUN=sum, by=7)
 wide<-cbind.data.frame(end_of_week_date,weeklycases)
 
+#importing data from the googlesheet
+Gsheet_data <- read_csv("CT-Yale Variant results - Rt.csv")
 
-CT_Yale_Variant_results_Rt <- read_csv("CT-Yale Variant results - Rt.csv")
+Gsheet_data = Gsheet_data %>%
+  select(Date,
+         `Freq Alpha`,
+         `Freq Delta`,
+         `Freq Gamma`,
+         `Freq Other VOC/VOI`,
+        `Freq Non-VOC/VOI`) %>%
+  rename(end_of_week_date = Date,
+         alpha_prop = `Freq Alpha`,
+         delta_prop = `Freq Delta`,
+         gamma_prop = `Freq Gamma`,
+         other_VOC_prop = `Freq Other VOC/VOI`,
+         other_nonVOC_prop = `Freq Non-VOC/VOI`)
 
-wide$alpha_prop<-c() #read in "alpha" proportions
-wide$gamma_prop<-c() #read in "gamma" proportions
-wide$delta_prop<-c() #read in "delta" proportions
-wide$other_nonVOC_prop<-c() #read in "non-VOC/VOI" proportions 
-wide$other_VOC_prop<-1-(wide$alpha_prop+wide$gamma_prop+wide$delta_prop+wide$other_nonVOC_prop)
+wide = wide %>% 
+  left_join(Gsheet_data, by = "end_of_week_date")
+  left_join(long_CT_cases_temp)
+
+# wide$alpha_prop<-c() #read in "alpha" proportions
+# wide$gamma_prop<-c() #read in "gamma" proportions
+# wide$delta_prop<-c() #read in "delta" proportions
+# wide$other_nonVOC_prop<-c() #read in "non-VOC/VOI" proportions 
+# wide$other_VOC_prop<-1-(wide$alpha_prop+wide$gamma_prop+wide$delta_prop+wide$other_nonVOC_prop)
 
 wide$alpha_cases<-wide$weeklycases*wide$alpha_prop
 wide$gamma_cases<-wide$weeklycases*wide$gamma_prop

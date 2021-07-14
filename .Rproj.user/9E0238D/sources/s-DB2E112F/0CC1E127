@@ -3,23 +3,23 @@
     "path": "~/Google Drive/R Directory/Grubaugh Lab/Rt/Rt estimates CT.R",
     "project_path": "Rt estimates CT.R",
     "type": "r_source",
-    "hash": "2724284499",
+    "hash": "45752271",
     "contents": "",
     "dirty": false,
     "created": 1626277053663.0,
-    "source_on_save": false,
+    "source_on_save": true,
     "relative_order": 1,
     "properties": {
         "source_window_id": "wwfgsi08kdrkh",
-        "cursorPosition": "57,0",
-        "scrollLine": "36"
+        "cursorPosition": "16,39",
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1626277195,
+    "lastKnownWriteTime": 1626283832,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1626277195814,
+    "last_content_update": 1626283832159,
     "read_only": false,
     "read_only_alternatives": []
 }

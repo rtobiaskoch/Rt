@@ -12,14 +12,14 @@
     "properties": {
         "expression": "CT_Yale_Variant_results_Rt",
         "caption": "CT_Yale_Variant_results_Rt",
-        "totalObservations": 230,
-        "displayedObservations": 230,
-        "variables": 18,
-        "cacheKey": "201B0042",
+        "totalObservations": "230",
+        "displayedObservations": "230",
+        "variables": "18",
+        "cacheKey": "394BFB86",
         "object": "CT_Yale_Variant_results_Rt",
         "environment": "",
-        "contentUrl": "grid_resource/gridviewer.html?env=&obj=CT_Yale_Variant_results_Rt&cache_key=201B0042&max_cols=50",
-        "preview": 0
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=CT_Yale_Variant_results_Rt&cache_key=394BFB86&max_cols=50",
+        "preview": "0"
     },
     "folds": "",
     "lastKnownWriteTime": 3617569384512434226,
