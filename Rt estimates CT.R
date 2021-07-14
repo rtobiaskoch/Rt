@@ -1,5 +1,4 @@
-rm(list=ls(all=T))
-graphic.off()
+
 
 packages = c("readr", "tidyverse", "EpiEstim", "xlsx","stats","zoo","DescTools", "googledrive","googlesheets4")
 
@@ -26,15 +25,30 @@ package.check <- lapply(
 
 set.seed(1234)
 
-#***********DATA IMPORT************************#
+#*******************************************************************************
+#####DATA IMPORT#####
+#*#*******************************************************************************
+
+
 # Read in case data from JHU CSSE COVID-19 dataset
-covid_cases<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+covid_cases<-
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
 # Read in death data from JHU CSSE COVID-19 dataset
-covid_deaths<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
-#importing data from the googlesheet
-Rt_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = "Rt")
+covid_deaths<-
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
+
+#importing rt data from CT-Yale Variant results googlesheet
+var_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = "Rt")
+
+#importing data from the main metadata sheet GLab_SC2_sequencing_results
+mdata_import <- read_sheet("1dUm-OtDOxvbS9OdCfnBrjBF9H5AKphauzzWxY-h4oUQ", sheet = "Sample metadata", range = "Sample metadata!A:H",
+                           col_types = c())
 
 
+
+#*******************************************************************************
+#####DATA CLEAN JHOP DATA#####
+#*#*******************************************************************************
 
 # Create CT dataset with cases and deaths (new and cumulative)
 long_cases<-gather(covid_cases, 
@@ -76,43 +90,68 @@ covid_CT_wide$New_Deaths<-ifelse(covid_CT_wide$New_Deaths<0,
 covid_CT_wide$Date<-as.character(covid_CT_wide$Date)
 covid_CT_wide$Date<-as.Date(covid_CT_wide$Date,"%m/%d/%y")
 
+#*******************************************************************************
+#####DATA CLEAN GLAB#####
+#*#*******************************************************************************
+
 #imported at beginning
-Gsheet_data = Rt_import %>%
-  select(-c(`Percent check`) %>%
+var_data = var_import %>%
+  select(-c(`Percent check`)) %>%
   rename(alpha_prop = `Freq Alpha`,
          delta_prop = `Freq Delta`,
          gamma_prop = `Freq Gamma`,
          other_VOC_prop = `Freq Other VOC/VOI`,
-         other_nonVOC_prop = `Freq Non-VOC/VOI`) %>% #rename to match variables in rest of code
+         other_nonVOC_prop = `Freq Non-VOC/VOI`,
+         gamma_cases =`Cases Gamma`,
+         alpha_cases = `Cases Alpha`,
+         delta_cases = `Cases Delta`,
+         other_VOC_cases = `Cases Other VOC/VOI`,
+         other_nonVOC_cases = `Cases Non-VOC/VOI`
+         ) %>% #rename to match variables in rest of code
   filter(!is.na(`New_Cases`))#removes blank columns
 
-week_int = sort(rep( 
-                    seq(as.Date(min(Gsheet_data$Date))+6, 
-                        as.Date(max(Gsheet_data$Date)), 
-                        by = 7), #creates weekly interval dates
-                    7) #repeates it 7 times for each day of the week
-                ) #makes it in sequential order
 
-week_int = week_int[1:nrow(Gsheet_data)] #filters to match the number of rows from data
-  
-Gsheet_data = Gsheet_data %>%
-  mutate(week_int = week_int)
+#TURNS OUT WE DONT ACTUALLY NEED THIS BUT IT IS HERE JUST IN CASE
+# week_int = sort(rep( 
+#                     seq(as.Date(min(Gsheet_data$Date))+6, 
+#                         as.Date(max(Gsheet_data$Date)), 
+#                         by = 7), #creates weekly interval dates
+#                     7) #repeats it 7 times for each day of the week
+#                 ) #makes it in sequential order
+# 
+# week_int = week_int[1:nrow(Gsheet_data)] #filters to match the number of rows from data
+#   
+# Gsheet_data = Gsheet_data %>%
+#   mutate(week_int = week_int)
 
-wide = Gsheet_data
 
-B117_jeffreys<-B117_jeffreys
-covid_CT_wide_daily<-covid_CT_wide
+#Code Good till here
 
-#change to the intervals in nextstrain
+#adding case data
+ mdata = mdata_import %>% 
+   filter(Filter =="connecticut") %>%
+   mutate(`Collection-date` = lubridate::as_date(`Collection-date`))%>%
+   group_by(`Collection-date`) %>% 
+   count(`Collection-date`)
+
+
+wide = var_data
+
+
+#*******************************************************************************
+#####RT CALC#####
+#*#*******************************************************************************
 weeklycases<-rollapply(covid_CT_wide$New_Cases, width=7, FUN=sum, by=7)
 
-daily_7<-Gsheet_data%>%
+daily_7<-var_data%>%
   mutate(alpha_7 = zoo::rollmean(alpha_cases, k = 7, fill = NA),
-                               gamma_7 = zoo::rollmean(wide$gamma_cases, k = 7, fill = NA),
-                               delta_7 = zoo::rollmean(wide$delta_cases, k = 7, fill = NA),
-                               other_nonVOC_7 = zoo::rollmean(wide$other_nonVOC_cases, k = 7, fill = NA),
-                               other_VOC_7 = zoo::rollmean(wide$other_VOC_cases, k = 7, fill = NA),
-                               n_7 = zoo::rollmean(n, k = 7, fill = NA))
+         gamma_7 = zoo::rollmean(gamma_cases, k = 7, fill = NA),
+         delta_7 = zoo::rollmean(delta_cases, k = 7, fill = NA),
+         other_nonVOC_7 = zoo::rollmean(other_nonVOC_cases, k = 7, fill = NA),
+         other_VOC_7 = zoo::rollmean(other_VOC_cases, k = 7, fill = NA)#,
+         
+       #  n_7 = zoo::rollmean(n, k = 7, fill = NA))
+)
 daily_7$rolling_avg_alpha<-daily_7$alpha_7/daily_7$n_7
 daily_7$rolling_avg_gamma<-daily_7$gamma_7/daily_7$n_7
 daily_7$rolling_avg_delta<-daily_7$delta_7/daily_7$n_7
