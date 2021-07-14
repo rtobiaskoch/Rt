@@ -1,15 +1,41 @@
-library(readr)
-library(tidyverse)
-library(EpiEstim)
-library(xlsx)
-library(stats)
-library(zoo)
-library(DescTools)
+rm(list=ls(all=T))
+graphic.off()
+
+packages = c("readr", "tidyverse", "EpiEstim", "xlsx","stats","zoo","DescTools", "googledrive","googlesheets4")
+
+## Now load or install&load all
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
+
+
+# library(readr)
+# library(tidyverse)
+# library(EpiEstim)
+# library(xlsx)
+# library(stats)
+# library(zoo)
+# library(DescTools)
+
+
 set.seed(1234)
+
+#***********DATA IMPORT************************#
 # Read in case data from JHU CSSE COVID-19 dataset
 covid_cases<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
 # Read in death data from JHU CSSE COVID-19 dataset
 covid_deaths<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
+#importing data from the googlesheet
+Rt_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = "Rt")
+
+
+
 # Create CT dataset with cases and deaths (new and cumulative)
 long_cases<-gather(covid_cases, 
                    Date, 
@@ -21,7 +47,6 @@ long_CT_cases<-subset(long_CT_cases,Admin2!="Out of CT"&Admin2!= "Unassigned")
 long_CT_cases<-aggregate(x=long_CT_cases$Cumulative_Cases,by=list(long_CT_cases$Date),FUN=sum)
 names(long_CT_cases)<-c("Date","Cumulative_Cases")
 long_CT_cases<-long_CT_cases %>%
-  group_by(Date) %>%
   mutate(New_Cases = Cumulative_Cases - lag(Cumulative_Cases))
 long_deaths<-gather(covid_deaths, 
                     Date, 
@@ -33,7 +58,6 @@ long_CT_deaths<-subset(long_CT_deaths,Admin2!="Out of CT"&Admin2!= "Unassigned")
 long_CT_deaths<-aggregate(x=long_CT_deaths$Cumulative_Deaths,by=list(long_CT_deaths$Date),FUN=sum)
 names(long_CT_deaths)<-c("Date","Cumulative_Deaths")
 long_CT_deaths<-long_CT_deaths%>%
-  group_by(Date) %>%
   mutate(New_Deaths = Cumulative_Deaths - lag(Cumulative_Deaths))
 
 covid_CT_wide<-cbind.data.frame(long_CT_cases$Date, long_CT_cases$Cumulative_Cases,
@@ -51,45 +75,39 @@ covid_CT_wide$New_Deaths<-ifelse(covid_CT_wide$New_Deaths<0,
 #New Haven
 covid_CT_wide$Date<-as.character(covid_CT_wide$Date)
 covid_CT_wide$Date<-as.Date(covid_CT_wide$Date,"%m/%d/%y")
-end_of_week_date<-seq(as.Date("2021/4/7"), as.Date("2021/7/12"), by = "week") #change the second date to current date (last date of data)
-weeklycases<-rollapply(covid_CT_wide$New_Cases, width=7, FUN=sum, by=7)
-wide<-cbind.data.frame(end_of_week_date,weeklycases)
 
-#importing data from the googlesheet
-Gsheet_data <- read_csv("CT-Yale Variant results - Rt.csv")
-
-Gsheet_data = Gsheet_data %>%
-  select(Date,
-         `Freq Alpha`,
-         `Freq Delta`,
-         `Freq Gamma`,
-         `Freq Other VOC/VOI`,
-        `Freq Non-VOC/VOI`) %>%
-  rename(end_of_week_date = Date,
-         alpha_prop = `Freq Alpha`,
+#imported at beginning
+Gsheet_data = Rt_import %>%
+  select(-c(`Percent check`) %>%
+  rename(alpha_prop = `Freq Alpha`,
          delta_prop = `Freq Delta`,
          gamma_prop = `Freq Gamma`,
          other_VOC_prop = `Freq Other VOC/VOI`,
-         other_nonVOC_prop = `Freq Non-VOC/VOI`)
+         other_nonVOC_prop = `Freq Non-VOC/VOI`) %>% #rename to match variables in rest of code
+  filter(!is.na(`New_Cases`))#removes blank columns
 
-wide = wide %>% 
-  left_join(Gsheet_data, by = "end_of_week_date")
-  left_join(long_CT_cases_temp)
+week_int = sort(rep( 
+                    seq(as.Date(min(Gsheet_data$Date))+6, 
+                        as.Date(max(Gsheet_data$Date)), 
+                        by = 7), #creates weekly interval dates
+                    7) #repeates it 7 times for each day of the week
+                ) #makes it in sequential order
 
-# wide$alpha_prop<-c() #read in "alpha" proportions
-# wide$gamma_prop<-c() #read in "gamma" proportions
-# wide$delta_prop<-c() #read in "delta" proportions
-# wide$other_nonVOC_prop<-c() #read in "non-VOC/VOI" proportions 
-# wide$other_VOC_prop<-1-(wide$alpha_prop+wide$gamma_prop+wide$delta_prop+wide$other_nonVOC_prop)
+week_int = week_int[1:nrow(Gsheet_data)] #filters to match the number of rows from data
+  
+Gsheet_data = Gsheet_data %>%
+  mutate(week_int = week_int)
 
-wide$alpha_cases<-wide$weeklycases*wide$alpha_prop
-wide$gamma_cases<-wide$weeklycases*wide$gamma_prop
-wide$delta_cases<-wide$weeklycases*wide$delta_prop
-wide$other_nonVOC_cases<-wide$weeklycases*wide$other_nonVOC_prop
-wide$other_VOC_cases<-wide$weeklycases*wide$other_VOC_prop
-wide$n<-wide$alpha_cases+wide$gamma_cases+wide$delta_cases+wide$other_nonVOC_cases+wide$other_VOC_cases
+wide = Gsheet_data
 
-daily_7<-daily%>%dplyr::mutate(alpha_7 = zoo::rollmean(wide$alpha_cases, k = 7, fill = NA),
+B117_jeffreys<-B117_jeffreys
+covid_CT_wide_daily<-covid_CT_wide
+
+#change to the intervals in nextstrain
+weeklycases<-rollapply(covid_CT_wide$New_Cases, width=7, FUN=sum, by=7)
+
+daily_7<-Gsheet_data%>%
+  mutate(alpha_7 = zoo::rollmean(alpha_cases, k = 7, fill = NA),
                                gamma_7 = zoo::rollmean(wide$gamma_cases, k = 7, fill = NA),
                                delta_7 = zoo::rollmean(wide$delta_cases, k = 7, fill = NA),
                                other_nonVOC_7 = zoo::rollmean(wide$other_nonVOC_cases, k = 7, fill = NA),
