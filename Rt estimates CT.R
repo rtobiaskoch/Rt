@@ -76,7 +76,7 @@ long_cases<-covid_cases %>%
          Admin2 !="Unassigned") %>%   #filters only cases in CT
   gather(Date, 
           Cumulative_Cases, 
-          "1/22/20":ncol(covid_cases)) %>%  #converts from wide format to long format
+          "1/22/20":ncol(covid_cases)) %>%  #converts from wide format to long format 1/22/20 is the first day of covid cases in the US and shouldn't change
   mutate(Date = mdy(Date)) %>% #converts the dates from the columnns into R date format
   select(Date, Cumulative_Cases) %>% #remove columns that are no longer needed
   group_by(Date) %>% 
@@ -205,21 +205,36 @@ delta_rt = rt_fun(daily_7$delta_cases7, delta_df, "delta")
 other_nonVOC_rt = rt_fun(daily_7$other_nonVOC_cases7, other_nonVOC_df, "other_nonVOC")
 other_VOC_rt = rt_fun(daily_7$other_VOC_cases7, other_VOC_df, "other_VOC")
 
+#me trying to extract the rts using an apply function
 rt_list = list(alpha_rt,
                gamma_rt,
                delta_rt,
                other_nonVOC_rt,
                other_VOC_rt)
 
-# WORKS UP UNTIL HERE
-# bind_fun = function()
-# 
-# test = map_dfr(rt_list, select(Date, 
-#                                ends_with("_Rt")))
+rt_names = c("Date", "alpha_Rt","gamma_Rt","delta_Rt",
+             "other_nonVOC_Rt", "other_VOC_Rt")
+
+#beginnings of an apply function
+rt_export = cbind.data.frame(Date = rt_list[[1]][,"Date"],
+                             alpha_rt = rt_list[[1]][,"alpha_Rt"],
+                             gamma_rt = rt_list[[2]][,"gamma_Rt"],
+                             delta_rt = rt_list[[3]][,"delta_Rt"],
+                             other_nonVOC_rt = rt_list[[4]][,"other_nonVOC_Rt"],
+                             other_VOC_rt = rt_list[[5]][,"other_VOC_Rt"]
+                               )
+rt_export = rt_export %>% drop_na()
 
 
 #Change the name/ path to wherever you want it saved on your computer
 setwd("Output")
 dir.create(as.character(Sys.Date()))
 setwd(as.character(Sys.Date()))
+
+filename = paste(min(rt_export$Date), "to", max(rt_export$Date), "CT Rt.csv")
+
+write.csv(rt_export, filename)
+
+
+
 
