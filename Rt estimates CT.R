@@ -149,8 +149,8 @@ ci_fun <- function(v, nn, name, c){
           method = "jeffreys")
   
   #adds alpha prefix to output names
-  out2 = paste(name, colnames(out), sep = "_")
-  colnames(out) = out2
+  cname = paste(name, colnames(out), sep = "_")
+  colnames(out) = cname
   
   #binds binom output to daily_7
   out3 = cbind.data.frame(daily_7, out)
@@ -226,10 +226,11 @@ rt_export = cbind.data.frame(Date = rt_list[[1]][,"Date"],
 rt_export = rt_export %>% drop_na()
 
 
-#Change the name/ path to wherever you want it saved on your computer
+#In your current working directory searches for a folder called Output and if it doesn't exist it will create one
+ifelse(!dir.exists(file.path("Output")), 
+       dir.create(file.path("Output")), 
+       FALSE)
 setwd("Output")
-dir.create(as.character(Sys.Date()))
-setwd(as.character(Sys.Date()))
 
 filename = paste(min(rt_export$Date), "to", max(rt_export$Date), "CT Rt.csv")
 
