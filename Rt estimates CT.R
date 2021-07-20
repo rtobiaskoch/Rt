@@ -211,11 +211,7 @@ rt_list = list(alpha_rt,
                other_nonVOC_rt,
                other_VOC_rt)
 
-# WORKS UP UNTIL HERE
-# bind_fun = function()
-# 
-# test = map_dfr(rt_list, select(Date, 
-#                                ends_with("_Rt")))
+# test
 
 
 #Change the name/ path to wherever you want it saved on your computer
