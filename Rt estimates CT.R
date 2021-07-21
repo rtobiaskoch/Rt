@@ -52,8 +52,8 @@ var_data = var_import %>%
   rename(alpha_prop = `Freq Alpha`,
          delta_prop = `Freq Delta`,
          gamma_prop = `Freq Gamma`,
-         other_VOC_prop = `Freq Other VOC/VOI`,
-         other_nonVOC_prop = `Freq Non-VOC/VOI`,
+         VOC_prop = `Freq Other VOC/VOI`,
+         nonVOC_prop = `Freq Non-VOC/VOI`,
          ) %>% #rename to match variables in rest of code
   filter(!is.na(Date)) %>% #removes blank columns
   mutate(Epiweek = paste(year(Date), "_EW", epiweek(Date), sep = "") #creates new epiweek column to match the format from nextstrain
@@ -93,60 +93,51 @@ var_merge = var_data %>%
   mutate(alpha_cases        = New_Cases*alpha_prop,
          delta_cases        = New_Cases*delta_prop,
          gamma_cases        = New_Cases*gamma_prop,
-         other_VOC_cases    = New_Cases*other_VOC_prop,
-         other_nonVOC_cases = New_Cases*other_nonVOC_prop) %>%
+         VOC_cases    = New_Cases*VOC_prop,
+         nonVOC_cases = New_Cases*nonVOC_prop) %>%
   mutate(alpha_n        = n*alpha_prop,
          delta_n        = n*delta_prop,
          gamma_n        = n*gamma_prop,
-         other_VOC_n    = n*other_VOC_prop,
-         other_nonVOC_n = n*other_nonVOC_prop)
+         VOC_n    = n*VOC_prop,
+         nonVOC_n = n*nonVOC_prop)
   
 #*******************************************************************************
 #####ROLLING 7 DAY AVG FOR RT #####
 #*******************************************************************************
-
 
 daily_7<- var_merge %>%
   #7 day rolling avg for samples sequenced
   mutate(alpha_n7 =         rollmean(alpha_n, k = 7, fill = NA),
          gamma_n7 =         rollmean(gamma_n, k = 7, fill = NA),
          delta_n7 =         rollmean(delta_n, k = 7, fill = NA),
-         other_nonVOC_n7 =  rollmean(other_nonVOC_n, k = 7, fill = NA),
-         other_VOC_n7 =     rollmean(other_VOC_n, k = 7, fill = NA),
+         nonVOC_n7 =  rollmean(nonVOC_n, k = 7, fill = NA),
+         VOC_n7 =     rollmean(VOC_n, k = 7, fill = NA),
          n_7 =              rollmean(n, k = 7, fill = NA)) %>%
   #7 day rolling avg for frequency(prop aka proportion)
   mutate(alpha_prop7 =         rollmean(alpha_prop, k = 7, fill = NA),
          gamma_prop7 =         rollmean(gamma_prop, k = 7, fill = NA),
          delta_prop7 =         rollmean(delta_prop, k = 7, fill = NA),
-         other_nonVOC_prop7 =  rollmean(other_nonVOC_prop, k = 7, fill = NA),
-         other_VOC_prop7 =     rollmean(other_VOC_prop, k = 7, fill = NA))%>%
+         nonVOC_prop7 =  rollmean(nonVOC_prop, k = 7, fill = NA),
+         VOC_prop7 =     rollmean(VOC_prop, k = 7, fill = NA))%>%
   #7 day rolling avg calculate by 7 day roll avg frequency pf variant * new cases
   mutate(alpha_cases7 = alpha_prop7 * New_Cases,
          gamma_cases7 = gamma_prop7 * New_Cases,
          delta_cases7 = delta_prop7 * New_Cases,
-         other_nonVOC_cases7 = other_nonVOC_prop7 * New_Cases,
-         other_VOC_cases7 = other_VOC_prop7 * New_Cases) %>%
-  drop_na
+         nonVOC_cases7 = nonVOC_prop7 * New_Cases,
+         VOC_cases7 = VOC_prop7 * New_Cases) %>%
+  drop_na #drops future dates and first 3 days because of rollmean 
          
-#*******************************************************************************
-# #arguments for the function in estimate R
-#*******************************************************************************
-t_start<-seq(2,nrow(daily_7)-21)
-t_end<-t_start+21
-config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
-                           std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
-                           n1=500,n2=50,t_start=t_start, t_end=t_end))
-
 
 #*******************************************************************************
 #CI FUNCTION
 #*#******************************************************************************
 ci_fun <- function(v, nn, name, c){
   out = BinomCI(x=v, 
-          n=nn, 
-          conf.level = 0.95, 
-          sides = "two.sided",
-          method = "jeffreys")
+                n=nn, 
+                conf.level = 0.95, 
+                sides = "two.sided",
+                method = "jeffreys")
+
   
   #adds alpha prefix to output names
   cname = paste(name, colnames(out), sep = "_")
@@ -157,15 +148,23 @@ ci_fun <- function(v, nn, name, c){
   
   #selects columns for only the variant being run for simplicity and Rt function
   out4 = out3 %>% select(Date,
-                         contains(name),
-                         -ends_with("_est")) #drop est output from binom because it is identical to rolling_avg_<variant>
+                         New_Cases,
+                         contains(name)
+                         ) %>%
+      mutate_at(vars(ends_with("est")), #searches for column with est
+              funs(.*New_Cases) #output is <variant_. couldnt figure out how to change
+    )
+  
 }
+
 
 alpha_df = ci_fun(daily_7$alpha_n7, daily_7$n_7, "alpha")
 gamma_df = ci_fun(daily_7$gamma_n7, daily_7$n_7, "gamma")
 delta_df = ci_fun(daily_7$delta_n7, daily_7$n_7, "delta")
-other_nonVOC_df = ci_fun(daily_7$other_nonVOC_n7, daily_7$n_7, "other_nonVOC")
-other_VOC_df = ci_fun(daily_7$other_VOC_n7, daily_7$n_7, "other_VOC")
+nonVOC_df = ci_fun(daily_7$nonVOC_n7, daily_7$n_7, "nonVOC")
+VOC_df = ci_fun(daily_7$VOC_n7, daily_7$n_7, "VOC")
+
+#works till here
 
 
 #*******************************************************************************
@@ -176,13 +175,27 @@ other_VOC_df = ci_fun(daily_7$other_VOC_n7, daily_7$n_7, "other_VOC")
 #generates Rt calculation, smooths the line then merges with 
 #the other variant data in a dataframe
 
-rt_fun= function(c, df, name){
-
-  mean_Rt = estimate_R(c,
+rt_fun= function(c7, df, name){
+  
+  non0 <- min(which(c7 > 0))#finds the row of the first non zero value for <variant>_cases7
+  t_beg = if(non0>2){
+    non0-2
+  }else{2}
+  
+  t_start<-seq(non0,length(c7)-21)
+  t_end<-t_start+21
+  config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
+                             std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
+                             n1=500,n2=50,t_start=t_start, t_end=t_end)
+                        )
+  
+   mean_Rt = estimate_R(c7[non0:length(c7)],
                        method="uncertain_si",
                        config = config)
   
    smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
+   smooth_spline_lower_ci<-with(mean_Rt_alpha$R, smooth.spline(mean_Rt_alpha$R$t_end, mean_Rt_alpha$R$`Quantile.0.025(R)`,cv=TRUE))
+   smooth_spline_upper_ci<-with(mean_Rt_alpha$R, smooth.spline(mean_Rt_alpha$R$t_end, mean_Rt_alpha$R$`Quantile.0.975(R)`,cv=TRUE))
    smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y)
    
    #renames smooth line Rt so it can merge and is more comprehensible
@@ -196,32 +209,35 @@ rt_fun= function(c, df, name){
      mutate(day = 1:nrow(df))%>%
      left_join(smooth_spline_mean_df) %>%
      rename_with(.fn = ~paste0(name,"_",.), .cols = Rt )
-  
 }
 
 alpha_rt = rt_fun(daily_7$alpha_cases7, alpha_df, "alpha")
 gamma_rt = rt_fun(daily_7$gamma_cases7, gamma_df, "gamma")
 delta_rt = rt_fun(daily_7$delta_cases7, delta_df, "delta")
-other_nonVOC_rt = rt_fun(daily_7$other_nonVOC_cases7, other_nonVOC_df, "other_nonVOC")
-other_VOC_rt = rt_fun(daily_7$other_VOC_cases7, other_VOC_df, "other_VOC")
+nonVOC_rt = rt_fun(daily_7$nonVOC_cases7, nonVOC_df, "nonVOC")
+VOC_rt = rt_fun(daily_7$VOC_cases7, VOC_df, "VOC")
 
 #me trying to extract the rts using an apply function
 rt_list = list(alpha_rt,
                gamma_rt,
                delta_rt,
-               other_nonVOC_rt,
-               other_VOC_rt)
+               nonVOC_rt,
+               VOC_rt)
 
 rt_names = c("Date", "alpha_Rt","gamma_Rt","delta_Rt",
-             "other_nonVOC_Rt", "other_VOC_Rt")
+             "nonVOC_Rt", "VOC_Rt")
+
+#new
+joined <- rt_list %>% 
+  reduce(left_join, by = "Date")
 
 #beginnings of an apply function
 rt_export = cbind.data.frame(Date = rt_list[[1]][,"Date"],
                              alpha_rt = rt_list[[1]][,"alpha_Rt"],
                              gamma_rt = rt_list[[2]][,"gamma_Rt"],
                              delta_rt = rt_list[[3]][,"delta_Rt"],
-                             other_nonVOC_rt = rt_list[[4]][,"other_nonVOC_Rt"],
-                             other_VOC_rt = rt_list[[5]][,"other_VOC_Rt"]
+                             nonVOC_rt = rt_list[[4]][,"nonVOC_Rt"],
+                             VOC_rt = rt_list[[5]][,"VOC_Rt"]
                                )
 rt_export = rt_export %>% drop_na()
 
