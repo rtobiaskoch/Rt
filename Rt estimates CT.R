@@ -177,7 +177,7 @@ VOC_df = ci_fun(daily_7$VOC_n7, daily_7$n_7, "VOC")
 
 rt_fun= function(c7, df, name){
   
-  non0 <- min(which(c7 > 0))#finds the row of the first non zero value for <variant>_cases7
+  non0 <- min(which(c7 > 0)) #finds the row of the first non zero value for <variant>_cases7
   t_beg = if(non0>2){
     non0-2
   }else{2}
@@ -211,11 +211,11 @@ rt_fun= function(c7, df, name){
      rename_with(.fn = ~paste0(name,"_",.), .cols = Rt )
 }
 
-alpha_rt = rt_fun(daily_7$alpha_cases7, alpha_df, "alpha")
-gamma_rt = rt_fun(daily_7$gamma_cases7, gamma_df, "gamma")
-delta_rt = rt_fun(daily_7$delta_cases7, delta_df, "delta")
-nonVOC_rt = rt_fun(daily_7$nonVOC_cases7, nonVOC_df, "nonVOC")
-VOC_rt = rt_fun(daily_7$VOC_cases7, VOC_df, "VOC")
+alpha_rt = rt_fun(alpha_df$alpha_est, alpha_df, "alpha")
+gamma_rt = rt_fun(gamma_df$gamma_est, gamma_df, "gamma")
+delta_rt = rt_fun(delta_df$delta_est, delta_df, "delta")
+nonVOC_rt = rt_fun(nonVOC_df$nonVOC_est, nonVOC_df, "nonVOC")
+VOC_rt = rt_fun(VOC_df$VOC_est, VOC_df, "VOC")
 
 #me trying to extract the rts using an apply function
 rt_list = list(alpha_rt,
