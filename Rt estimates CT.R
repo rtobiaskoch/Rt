@@ -152,10 +152,13 @@ ci_fun <- function(v, nn, name, c){
                          contains(name)
                          ) %>%
       mutate_at(vars(ends_with("est")), #searches for column with est
-              funs(.*New_Cases) #output is <variant_. couldnt figure out how to change
-    )
-  
-}
+              funs(.*New_Cases)
+               )%>% #output is <variant_. couldnt figure out how to change
+     rename_at(vars(ends_with("est")),
+               funs(paste("I"))
+                    # use this if you need variant prefix funs(paste(name,"I",sep = "_"))
+                )
+    }
 
 
 alpha_df = ci_fun(daily_7$alpha_n7, daily_7$n_7, "alpha")
@@ -168,7 +171,7 @@ iota_df = ci_fun(daily_7$iota_n7, daily_7$n_7, "iota")
 
 
 #*******************************************************************************
-#RT FUNCTION -Delta
+#RT FUNCTION ####
 #*#******************************************************************************
   
 #Rt Calculation
@@ -176,66 +179,34 @@ iota_df = ci_fun(daily_7$iota_n7, daily_7$n_7, "iota")
 #the other variant data in a dataframe
 
 #run for everything -delta
-rt_fun= function(c7, df, name){
+rt_fun= function(df, name){
   
-  t_start<-seq(2,length(c7)-21)
-  t_end<-t_start+21
-  config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
-                             std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
-                             n1=500,n2=50,t_start=t_start, t_end=t_end)
-                        )
+  non0 <- min(which(df$I > 0)) #1st day with cases of variant to start the R estimate otherise R estimate artificially high
   
-   mean_Rt = estimate_R(c7,
-                       method="uncertain_si",
-                       config = config)
+  df2 = df[non0:nrow(df),] #dataframe filtered where there is the first case of variant to end of dataset
   
-   smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
-   smooth_spline_lower_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.025(R)`,cv=TRUE))
-   smooth_spline_upper_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.975(R)`,cv=TRUE))
-   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,
-                                           smooth_spline_lower_ci$y,smooth_spline_upper_ci$y)
-   
-   # #renames smooth line Rt so it can merge and is more comprehensible
-   smooth_spline_mean_df = rename(smooth_spline_mean_df,
-                                  day = `smooth_spline_mean$x`,
-                                  Rt = `smooth_spline_mean$y`,
-                                  lowci = `smooth_spline_lower_ci$y`,
-                                  upci = `smooth_spline_upper_ci$y`)
-   
-   #merges the Rt value with the other variant data and renames Rt to have variant suffix
-   merge = df %>%
-     arrange(Date)%>%
-     mutate(day = 1:nrow(df))%>%
-     left_join(smooth_spline_mean_df) %>%
-      rename_with(.fn = ~paste0(name,"_",.), .cols = c("Rt", "rtlowci", "upci"))
-}
-
-alpha_rt = rt_fun(alpha_df$alpha_est, alpha_df, "alpha")
-gamma_rt = rt_fun(gamma_df$gamma_est, gamma_df, "gamma")
-nonVOC_rt = rt_fun(nonVOC_df$nonVOC_est, nonVOC_df, "nonVOC")
-iota_rt = rt_fun(iota_df$iota_est, iota_df, "iota")
-
-#*******************************************************************************
-#Rt Function for Delta because I couldn't get it to work in the main function
-#*******************************************************************************
-c7 = delta_df$delta_est[]
-
-non0 <- min(which(daily_7$alpha_cases7 > 0))
-  
-  t_start<-seq(2,length(c7)-21)
+  #input of interval for R estimate
+  t_start<-seq(2, nrow(df2)-21) 
   t_end<-t_start+21
   config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
                              std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
                              n1=500,n2=50,t_start=t_start, t_end=t_end)
   )
   
-  mean_Rt = estimate_R(c7,
+  
+  mean_Rt = estimate_R(df2$I, #will search for column named I which was created in the ci_fun but explicitly named here
                        method="uncertain_si",
                        config = config)
+  
+  #adds back in days that were filtered out to match the days in the main dataframe
+  mean_Rt$R$t_start = mean_Rt$R$t_start +non0 
+  mean_Rt$R$t_end = mean_Rt$R$t_end + non0
   
   smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
   smooth_spline_lower_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.025(R)`,cv=TRUE))
   smooth_spline_upper_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.975(R)`,cv=TRUE))
+  
+  #binds them into a dataframe
   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,
                                           smooth_spline_lower_ci$y,smooth_spline_upper_ci$y)
   
@@ -243,58 +214,58 @@ non0 <- min(which(daily_7$alpha_cases7 > 0))
   smooth_spline_mean_df = rename(smooth_spline_mean_df,
                                  day = `smooth_spline_mean$x`,
                                  Rt = `smooth_spline_mean$y`,
-                                 lowci = `smooth_spline_lower_ci$y`,
-                                 upci = `smooth_spline_upper_ci$y`)
+                                 rtlowci = `smooth_spline_lower_ci$y`,
+                                 rtupci = `smooth_spline_upper_ci$y`)
   
   #merges the Rt value with the other variant data and renames Rt to have variant suffix
   merge = df %>%
-    arrange(Date)%>%
-    mutate(day = 1:nrow(df))%>%
+    arrange(Date)%>% #keep in date so that the day variable lines up with the first date
+    mutate(day = 1:nrow(df))%>% #used to merge with the estimate_R variable output for the day
     left_join(smooth_spline_mean_df) %>%
-    rename_with(.fn = ~paste0(name,"_",.), .cols = c("Rt", "rtlowci", "upci"))
+    rename_with(.fn = ~paste0(name,"_",.), .cols = c("Rt", "rtlowci", "rtupci")) #renames the smooth_spline output to have variant prefix
 }
 
+alpha_rt = rt_fun(alpha_df, "alpha")
+gamma_rt = rt_fun(gamma_df, "gamma")
+nonVOC_rt = rt_fun(nonVOC_df, "nonVOC")
+iota_rt = rt_fun(iota_df, "iota")
+delta_rt = rt_fun(delta_df, "delta")
 
 
-#me trying to extract the rts using an apply function
+
+#*******************************************************************************
+#RT MERGE FOR EXPORT ####
+#*******************************************************************************
+#me trying to extract the rt's in the join
 rt_list = list(alpha_rt,
                gamma_rt,
                delta_rt,
                nonVOC_rt,
                iota_rt)
 
-#new
+#new merged file that selects only the necessary variables
 rt_export <- rt_list %>% 
   reduce(left_join, by = "Date") %>%
   select(Date,
-         alpha_Rt,
-         alpha_lowci,
-         alpha_upci,
-         gamma_Rt,
-         gamma_lowci,
-         gamma_upci,
-         delta_Rt,
-         delta_lowci,
-         delta_upci,
-         iota_Rt,
-         iota_lowci,
-         iota_upci,
-         nonVOC_Rt,
-         nonVOC_lowci,
-         nonVOC_upci,
-         ) %>%
-  drop_na
+         alpha_Rt, #alpha
+         alpha_rtlowci,
+         alpha_rtupci,
+         gamma_Rt, #gamma
+         gamma_rtlowci,
+         gamma_rtupci,
+         delta_Rt, #delta
+         delta_rtlowci,
+         delta_rtupci,
+         iota_Rt, #iota
+         iota_rtlowci,
+         iota_rtupci,
+         nonVOC_Rt, #nonVOC
+         nonVOC_rtlowci,
+         nonVOC_rtupci,
+         )
 
-
-#In your current working directory searches for a folder called Output and if it doesn't exist it will create one
-ifelse(!dir.exists(file.path("Output")), 
-       dir.create(file.path("Output")), 
-       FALSE)
-setwd("Output")
-
-filename = paste(min(rt_export$Date), "to", max(rt_export$Date), "CT Rt.csv")
-
-write.csv(rt_export, filename)
+#export directly back into the google sheet that we use "CT-Yale Variant results
+write_sheet(rt_export, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = "Rt_R_out")
 
 
 
