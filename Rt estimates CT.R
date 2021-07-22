@@ -67,8 +67,6 @@ covid_cases<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19
 #*******************************************************************************
 ####JHOP CASE CLEAN #####
 #*#*******************************************************************************
-covid_cases<-read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
-
 # Create CT dataset with cases and deaths (new and cumulative)
 long_cases<-covid_cases %>%
   filter(Province_State == "Connecticut" & 
