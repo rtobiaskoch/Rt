@@ -168,55 +168,93 @@ iota_df = ci_fun(daily_7$iota_n7, daily_7$n_7, "iota")
 
 
 #*******************************************************************************
-#RT FUNCTION
+#RT FUNCTION -Delta
 #*#******************************************************************************
   
 #Rt Calculation
 #generates Rt calculation, smooths the line then merges with 
 #the other variant data in a dataframe
 
+#run for everything -delta
 rt_fun= function(c7, df, name){
   
-  non0 <- min(which(c7 > 0)) #finds the row of the first non zero value for <variant>_cases7
-  t_beg = if(non0>2){ #logic if first non zero value for variant greater than 2
-    non0  #if true then will start at non zero value
-  }else{2}
-  
-  t_start<-seq(t_beg,length(c7)-21-t_beg)
-  t_end<-seq(t_start[1]+21,length(c7)-t_beg)
+  t_start<-seq(2,length(c7)-21)
+  t_end<-t_start+21
   config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
                              std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
                              n1=500,n2=50,t_start=t_start, t_end=t_end)
                         )
   
-   mean_Rt = estimate_R(c7[t_beg:length(c7)],
+   mean_Rt = estimate_R(c7,
                        method="uncertain_si",
                        config = config)
   
    smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
    smooth_spline_lower_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.025(R)`,cv=TRUE))
    smooth_spline_upper_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.975(R)`,cv=TRUE))
-   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,smooth_spline_mean$x,smooth_spline_mean$y,
+   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,
                                            smooth_spline_lower_ci$y,smooth_spline_upper_ci$y)
    
-   #renames smooth line Rt so it can merge and is more comprehensible
-   smooth_spline_mean_df = rename(smooth_spline_mean_df, 
-                                  day =`smooth_spline_mean$x`,
-                                  Rt = `smooth_spline_mean$y`)
+   # #renames smooth line Rt so it can merge and is more comprehensible
+   smooth_spline_mean_df = rename(smooth_spline_mean_df,
+                                  day = `smooth_spline_mean$x`,
+                                  Rt = `smooth_spline_mean$y`,
+                                  lowci = `smooth_spline_lower_ci$y`,
+                                  upci = `smooth_spline_upper_ci$y`)
    
    #merges the Rt value with the other variant data and renames Rt to have variant suffix
    merge = df %>%
      arrange(Date)%>%
      mutate(day = 1:nrow(df))%>%
      left_join(smooth_spline_mean_df) %>%
-     rename_with(.fn = ~paste0(name,"_",.), .cols = Rt )
+      rename_with(.fn = ~paste0(name,"_",.), .cols = c("Rt", "rtlowci", "upci"))
 }
 
 alpha_rt = rt_fun(alpha_df$alpha_est, alpha_df, "alpha")
 gamma_rt = rt_fun(gamma_df$gamma_est, gamma_df, "gamma")
-delta_rt = rt_fun(delta_df$delta_est, delta_df, "delta")
 nonVOC_rt = rt_fun(nonVOC_df$nonVOC_est, nonVOC_df, "nonVOC")
 iota_rt = rt_fun(iota_df$iota_est, iota_df, "iota")
+
+#*******************************************************************************
+#Rt Function for Delta because I couldn't get it to work in the main function
+#*******************************************************************************
+c7 = delta_df$delta_est[]
+
+non0 <- min(which(daily_7$alpha_cases7 > 0))
+  
+  t_start<-seq(2,length(c7)-21)
+  t_end<-t_start+21
+  config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
+                             std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
+                             n1=500,n2=50,t_start=t_start, t_end=t_end)
+  )
+  
+  mean_Rt = estimate_R(c7,
+                       method="uncertain_si",
+                       config = config)
+  
+  smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
+  smooth_spline_lower_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.025(R)`,cv=TRUE))
+  smooth_spline_upper_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.975(R)`,cv=TRUE))
+  smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,
+                                          smooth_spline_lower_ci$y,smooth_spline_upper_ci$y)
+  
+  # #renames smooth line Rt so it can merge and is more comprehensible
+  smooth_spline_mean_df = rename(smooth_spline_mean_df,
+                                 day = `smooth_spline_mean$x`,
+                                 Rt = `smooth_spline_mean$y`,
+                                 lowci = `smooth_spline_lower_ci$y`,
+                                 upci = `smooth_spline_upper_ci$y`)
+  
+  #merges the Rt value with the other variant data and renames Rt to have variant suffix
+  merge = df %>%
+    arrange(Date)%>%
+    mutate(day = 1:nrow(df))%>%
+    left_join(smooth_spline_mean_df) %>%
+    rename_with(.fn = ~paste0(name,"_",.), .cols = c("Rt", "rtlowci", "upci"))
+}
+
+
 
 #me trying to extract the rts using an apply function
 rt_list = list(alpha_rt,
@@ -225,22 +263,27 @@ rt_list = list(alpha_rt,
                nonVOC_rt,
                iota_rt)
 
-rt_names = c("Date", "alpha_Rt","gamma_Rt","delta_Rt",
-             "nonVOC_Rt", "iota_Rt")
-
 #new
-joined <- rt_list %>% 
-  reduce(left_join, by = "Date")
-
-#beginnings of an apply function
-rt_export = cbind.data.frame(Date = rt_list[[1]][,"Date"],
-                             alpha_rt = rt_list[[1]][,"alpha_Rt"],
-                             gamma_rt = rt_list[[2]][,"gamma_Rt"],
-                             delta_rt = rt_list[[3]][,"delta_Rt"],
-                             nonVOC_rt = rt_list[[4]][,"nonVOC_Rt"],
-                             iota_rt = rt_list[[5]][,"iota_Rt"]
-                               )
-rt_export = rt_export %>% drop_na()
+rt_export <- rt_list %>% 
+  reduce(left_join, by = "Date") %>%
+  select(Date,
+         alpha_Rt,
+         alpha_lowci,
+         alpha_upci,
+         gamma_Rt,
+         gamma_lowci,
+         gamma_upci,
+         delta_Rt,
+         delta_lowci,
+         delta_upci,
+         iota_Rt,
+         iota_lowci,
+         iota_upci,
+         nonVOC_Rt,
+         nonVOC_lowci,
+         nonVOC_upci,
+         ) %>%
+  drop_na
 
 
 #In your current working directory searches for a folder called Output and if it doesn't exist it will create one
