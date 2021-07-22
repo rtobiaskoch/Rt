@@ -264,10 +264,81 @@ rt_export <- rt_list %>%
   filter_at(2:ncol(rt_export), 
             any_vars(!is.na(.)))
 
+mutate_col = colnames(rt_export[2:length(rt_export)])
+
+#reformat to fit formatting for the website
+rt_export2 = rt_export %>%
+  mutate_at(all_of(mutate_col),
+            funs(round(.,2))   #rounds all variables to 2nd decimal
+            ) %>%
+  transmute(`First day of week` = Date,
+            #ALPHA
+            Alpha = alpha_Rt,
+           `Alpha-CI` = paste(month(Date),"/",day(Date),
+                            ": ", 
+                            alpha_Rt,
+                            " (",
+                            alpha_rtlowci,
+                            ", ",
+                            alpha_rtupci,
+                            ")",sep =""),
+            `Alpha-low` = alpha_rtlowci,
+            `Alpha-high` = alpha_rtupci,
+           #DELTA
+            Delta = delta_Rt,
+           `Delta-CI` = paste(month(Date),"/",day(Date),
+                               ": ", 
+                               delta_Rt,
+                               " (",
+                               delta_rtlowci,
+                               ", ",
+                               delta_rtupci,
+                               ")",sep =""),
+           `Delta-low` = delta_rtlowci,
+           `Delta-high` = delta_rtupci,
+           #GAMMA
+           Gamma = gamma_Rt, 
+           `Gamma-CI` = paste(month(Date),"/",day(Date),
+                              ": ", 
+                              gamma_Rt,
+                              " (",
+                              gamma_rtlowci,
+                              ", ",
+                              gamma_rtupci,
+                              ")",sep =""),
+           `Gamma-low` = gamma_rtlowci,
+           `Gamma-high` = gamma_rtupci,
+           #IOTA
+           Iota = iota_Rt, 
+           `Iota-CI` = paste(month(Date),"/",day(Date),
+                              ": ", 
+                              iota_Rt,
+                              " (",
+                              iota_rtlowci,
+                              ", ",
+                              iota_rtupci,
+                              ")",sep =""),
+           `Iota-low` = iota_rtlowci,
+           `Iota-high` = iota_rtupci,
+           #OTHER
+           Other = nonVOC_Rt, 
+           `Other-CI` = paste(month(Date),"/",day(Date),
+                              ": ", 
+                              nonVOC_Rt,
+                              " (",
+                              nonVOC_rtlowci,
+                              ", ",
+                              nonVOC_rtupci,
+                              ")",sep =""),
+           `Other-low` = nonVOC_rtlowci,
+           `Other-high` = nonVOC_rtupci,
+            )
+
+
 #export directly back into the google sheet that we use "CT-Yale Variant results
 #creates sheet name with the first and last date in dataframe
-sheetname = paste("Rt_out", min(rt_export$Date), "to", max(rt_export$Date), sep = " ")
-write_sheet(rt_export, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = sheetname)
+sheetname = paste("Rt_out", min(rt_export2$`First day of week`), "to", max(rt_export2$`First day of week`), sep = " ")
+write_sheet(rt_export2, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = sheetname)
 
 
 
