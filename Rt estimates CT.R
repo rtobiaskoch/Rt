@@ -43,7 +43,7 @@ var_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet =
 #*#*******************************************************************************
 
 glab_drop_temp = c("Percent check","New_Cases","Cases Gamma","Cases Alpha",
-                   "Cases Delta", "Cases Other VOC/VOI", "Cases Non-VOC/VOI")
+                   "Cases Delta", "Cases Iota", "Cases Non-VOC/VOI")
 
 #imported at beginning
 var_data = var_import %>%
@@ -52,7 +52,7 @@ var_data = var_import %>%
   rename(alpha_prop = `Freq Alpha`,
          delta_prop = `Freq Delta`,
          gamma_prop = `Freq Gamma`,
-         VOC_prop = `Freq Other VOC/VOI`,
+         iota_prop = `Freq Iota`,
          nonVOC_prop = `Freq Non-VOC/VOI`,
          ) %>% #rename to match variables in rest of code
   filter(!is.na(Date)) %>% #removes blank columns
@@ -93,12 +93,12 @@ var_merge = var_data %>%
   mutate(alpha_cases        = New_Cases*alpha_prop,
          delta_cases        = New_Cases*delta_prop,
          gamma_cases        = New_Cases*gamma_prop,
-         VOC_cases    = New_Cases*VOC_prop,
+         iota_cases    = New_Cases*iota_prop,
          nonVOC_cases = New_Cases*nonVOC_prop) %>%
   mutate(alpha_n        = n*alpha_prop,
          delta_n        = n*delta_prop,
          gamma_n        = n*gamma_prop,
-         VOC_n    = n*VOC_prop,
+         iota_n    = n*iota_prop,
          nonVOC_n = n*nonVOC_prop)
   
 #*******************************************************************************
@@ -111,20 +111,20 @@ daily_7<- var_merge %>%
          gamma_n7 =         rollmean(gamma_n, k = 7, fill = NA),
          delta_n7 =         rollmean(delta_n, k = 7, fill = NA),
          nonVOC_n7 =  rollmean(nonVOC_n, k = 7, fill = NA),
-         VOC_n7 =     rollmean(VOC_n, k = 7, fill = NA),
+         iota_n7 =     rollmean(iota_n, k = 7, fill = NA),
          n_7 =              rollmean(n, k = 7, fill = NA)) %>%
   #7 day rolling avg for frequency(prop aka proportion)
   mutate(alpha_prop7 =         rollmean(alpha_prop, k = 7, fill = NA),
          gamma_prop7 =         rollmean(gamma_prop, k = 7, fill = NA),
          delta_prop7 =         rollmean(delta_prop, k = 7, fill = NA),
          nonVOC_prop7 =  rollmean(nonVOC_prop, k = 7, fill = NA),
-         VOC_prop7 =     rollmean(VOC_prop, k = 7, fill = NA))%>%
+         iota_prop7 =     rollmean(iota_prop, k = 7, fill = NA))%>%
   #7 day rolling avg calculate by 7 day roll avg frequency pf variant * new cases
   mutate(alpha_cases7 = alpha_prop7 * New_Cases,
          gamma_cases7 = gamma_prop7 * New_Cases,
          delta_cases7 = delta_prop7 * New_Cases,
          nonVOC_cases7 = nonVOC_prop7 * New_Cases,
-         VOC_cases7 = VOC_prop7 * New_Cases) %>%
+         iota_cases7 = iota_prop7 * New_Cases) %>%
   drop_na #drops future dates and first 3 days because of rollmean 
          
 
@@ -162,7 +162,7 @@ alpha_df = ci_fun(daily_7$alpha_n7, daily_7$n_7, "alpha")
 gamma_df = ci_fun(daily_7$gamma_n7, daily_7$n_7, "gamma")
 delta_df = ci_fun(daily_7$delta_n7, daily_7$n_7, "delta")
 nonVOC_df = ci_fun(daily_7$nonVOC_n7, daily_7$n_7, "nonVOC")
-VOC_df = ci_fun(daily_7$VOC_n7, daily_7$n_7, "VOC")
+iota_df = ci_fun(daily_7$iota_n7, daily_7$n_7, "iota")
 
 #works till here
 
@@ -178,25 +178,26 @@ VOC_df = ci_fun(daily_7$VOC_n7, daily_7$n_7, "VOC")
 rt_fun= function(c7, df, name){
   
   non0 <- min(which(c7 > 0)) #finds the row of the first non zero value for <variant>_cases7
-  t_beg = if(non0>2){
-    non0-2
+  t_beg = if(non0>2){ #logic if first non zero value for variant greater than 2
+    non0  #if true then will start at non zero value
   }else{2}
   
-  t_start<-seq(non0,length(c7)-21)
-  t_end<-t_start+21
+  t_start<-seq(t_beg,length(c7)-21-t_beg)
+  t_end<-seq(t_start[1]+21,length(c7)-t_beg)
   config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
                              std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
                              n1=500,n2=50,t_start=t_start, t_end=t_end)
                         )
   
-   mean_Rt = estimate_R(c7[non0:length(c7)],
+   mean_Rt = estimate_R(c7[t_beg:length(c7)],
                        method="uncertain_si",
                        config = config)
   
    smooth_spline_mean<- with(mean_Rt$R, smooth.spline(mean_Rt$R$`t_end`, mean_Rt$R$`Mean(R)`, cv = TRUE))
-   smooth_spline_lower_ci<-with(mean_Rt_alpha$R, smooth.spline(mean_Rt_alpha$R$t_end, mean_Rt_alpha$R$`Quantile.0.025(R)`,cv=TRUE))
-   smooth_spline_upper_ci<-with(mean_Rt_alpha$R, smooth.spline(mean_Rt_alpha$R$t_end, mean_Rt_alpha$R$`Quantile.0.975(R)`,cv=TRUE))
-   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y)
+   smooth_spline_lower_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.025(R)`,cv=TRUE))
+   smooth_spline_upper_ci<-with(mean_Rt$R, smooth.spline(mean_Rt$R$t_end, mean_Rt$R$`Quantile.0.975(R)`,cv=TRUE))
+   smooth_spline_mean_df<-cbind.data.frame(smooth_spline_mean$x,smooth_spline_mean$y,smooth_spline_mean$x,smooth_spline_mean$y,
+                                           smooth_spline_lower_ci$y,smooth_spline_upper_ci$y)
    
    #renames smooth line Rt so it can merge and is more comprehensible
    smooth_spline_mean_df = rename(smooth_spline_mean_df, 
@@ -215,17 +216,17 @@ alpha_rt = rt_fun(alpha_df$alpha_est, alpha_df, "alpha")
 gamma_rt = rt_fun(gamma_df$gamma_est, gamma_df, "gamma")
 delta_rt = rt_fun(delta_df$delta_est, delta_df, "delta")
 nonVOC_rt = rt_fun(nonVOC_df$nonVOC_est, nonVOC_df, "nonVOC")
-VOC_rt = rt_fun(VOC_df$VOC_est, VOC_df, "VOC")
+iota_rt = rt_fun(iota_df$iota_est, iota_df, "iota")
 
 #me trying to extract the rts using an apply function
 rt_list = list(alpha_rt,
                gamma_rt,
                delta_rt,
                nonVOC_rt,
-               VOC_rt)
+               iota_rt)
 
 rt_names = c("Date", "alpha_Rt","gamma_Rt","delta_Rt",
-             "nonVOC_Rt", "VOC_Rt")
+             "nonVOC_Rt", "iota_Rt")
 
 #new
 joined <- rt_list %>% 
@@ -237,7 +238,7 @@ rt_export = cbind.data.frame(Date = rt_list[[1]][,"Date"],
                              gamma_rt = rt_list[[2]][,"gamma_Rt"],
                              delta_rt = rt_list[[3]][,"delta_Rt"],
                              nonVOC_rt = rt_list[[4]][,"nonVOC_Rt"],
-                             VOC_rt = rt_list[[5]][,"VOC_Rt"]
+                             iota_rt = rt_list[[5]][,"iota_Rt"]
                                )
 rt_export = rt_export %>% drop_na()
 

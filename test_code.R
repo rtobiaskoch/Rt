@@ -1,18 +1,34 @@
-
+#delta
 non0 <- min(which(delta_df$delta_est > 0))
 
 t_beg = if(non0>2){
   non0-2
 }else{2}
 
-t_start<-seq(2,length(delta_df$delta_est)-18)
-t_end<-t_start+18
+t_start<-seq(t_beg,length(delta_df$delta_est)-18)
+t_end<- 
+
+case7_R = delta_df$delta_est[t_beg:length(delta_df$delta_est)] 
+
+#alpha
+non02 <- min(which(alpha_df$alpha_est > 0))
+
+t_beg2 = if(non0>2){
+  non02-2
+}else{2}
+
+t_start2<-seq(t_beg2,length(alpha_df$alpha_est)-18)
+t_end2<-t_start2+18
+
+
+
+
 config <- make_config(list(mean_si = 5.2, std_mean_si = 1,min_mean_si = 2.2, max_mean_si = 8.2,
                            std_si = 4, std_std_si = 0.5,min_std_si = 2.5, max_std_si = 5.5,
                            n1=500,n2=50,t_start=t_start, t_end=t_end)
 )
 
-case7_R = delta_df$delta_est[t_beg:length(delta_df$delta_est)]                  
+case7_R2 = alpha_df$alpha_est[t_beg:length(alpha_df$alpha_est)]                  
 
 mean_Rt = estimate_R(case7_R,
                      method="uncertain_si",
