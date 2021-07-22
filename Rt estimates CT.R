@@ -265,10 +265,9 @@ rt_export <- rt_list %>%
             any_vars(!is.na(.)))
 
 #export directly back into the google sheet that we use "CT-Yale Variant results
+#creates sheet name with the first and last date in dataframe
 sheetname = paste("Rt_out", min(rt_export$Date), "to", max(rt_export$Date), sep = " ")
 write_sheet(rt_export, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = sheetname)
-
-#test for github commit
 
 
 
