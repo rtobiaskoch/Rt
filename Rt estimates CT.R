@@ -260,10 +260,13 @@ rt_export <- rt_list %>%
          nonVOC_Rt, #nonVOC
          nonVOC_rtlowci,
          nonVOC_rtupci,
-         )
+         ) %>%
+  filter_at(2:ncol(rt_export), 
+            any_vars(!is.na(.)))
 
 #export directly back into the google sheet that we use "CT-Yale Variant results
-write_sheet(rt_export, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = "Rt_R_out")
+sheetname = paste("Rt_out", min(rt_export$Date), "to", max(rt_export$Date), sep = " ")
+write_sheet(rt_export, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = sheetname)
 
 
 
