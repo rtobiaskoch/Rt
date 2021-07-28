@@ -261,10 +261,25 @@ rt_export <- rt_list %>%
          nonVOC_rtlowci,
          nonVOC_rtupci,
          ) %>%
-  filter_at(2:ncol(rt_export), 
+  filter_at(2:ncol(.), 
             any_vars(!is.na(.)))
 
 mutate_col = colnames(rt_export[2:length(rt_export)])
+
+#*******************************************************************************
+#Rt Plot####
+#*******************************************************************************
+#creates a plot as a quick check to see if values are looking correct
+rt_plot = rt_export %>%
+  select_at(vars(Date, ends_with("_Rt"))) %>%
+  gather("variant", "rt", 2:ncol(.))
+
+
+p <- rt_plot %>%
+  ggplot(aes(x = Date, y = rt, color = variant, fill = variant)) +
+  geom_line()
+
+p          
 
 #*******************************************************************************
 #REFORMAT####

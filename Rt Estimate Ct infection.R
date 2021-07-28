@@ -43,7 +43,7 @@ var_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet =
 #####GLAB DATA CLEAN#####
 #*#*******************************************************************************
 
-glab_drop_temp = c("Percent check","New_cases","Cases Gamma","Cases Alpha",
+glab_drop_temp = c("end_of_week_date","EW","Percent check","New_Cases","Cases Gamma","Cases Alpha",
                    "Cases Delta", "Cases Iota", "Cases Non-VOC/VOI")
 
 #imported at beginning
@@ -56,9 +56,7 @@ var_data = var_import %>%
          iota_prop = `Freq Iota`,
          nonVOC_prop = `Freq Non-VOC/VOI`,
   ) %>% #rename to match variables in rest of code
-  filter(!is.na(Date)) %>% #removes blank columns
-  mutate(Epiweek = paste(year(Date), "_EW", epiweek(Date), sep = "") #creates new epiweek column to match the format from nextstrain
-  )
+  filter(!is.na(n)) #removes blank columns
 
 #*******************************************************************************
 ##### Covidestim.org#####
@@ -274,7 +272,6 @@ p
 #*******************************************************************************
 #REFORMAT####
 #*******************************************************************************
-#*
 #creating variable for the column rename 
 mutate_col = colnames(rt_export[2:length(rt_export)])
 #reformat to fit formatting for the website
@@ -351,7 +348,7 @@ rt_export2 = rt_export %>%
 #export directly back into the google sheet that we use "CT-Yale Variant results
 #creates sheet name with the first and last date in dataframe
 sheetname = paste("Rt_out", min(rt_export2$`First day of week`), "to", max(rt_export2$`First day of week`), sep = " ")
-write_sheet(rt_export2, "12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet = sheetname)
+write_sheet(rt_export2, "1IskdjyQI4N6cCVO2s_hqStltEZ-q091VjAATrovfTjk", sheet = sheetname)
 
 
 
