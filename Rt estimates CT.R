@@ -266,6 +266,10 @@ rt_export <- rt_list %>%
 
 mutate_col = colnames(rt_export[2:length(rt_export)])
 
+#*******************************************************************************
+#REFORMAT####
+#*******************************************************************************
+#*
 #reformat to fit formatting for the website
 rt_export2 = rt_export %>%
   mutate_at(all_of(mutate_col),
@@ -333,8 +337,10 @@ rt_export2 = rt_export %>%
            `Other-low` = nonVOC_rtlowci,
            `Other-high` = nonVOC_rtupci,
             )
-
-
+#*******************************************************************************
+#EXPORT####
+#*******************************************************************************
+#*
 #export directly back into the google sheet that we use "CT-Yale Variant results
 #creates sheet name with the first and last date in dataframe
 sheetname = paste("Rt_out", min(rt_export2$`First day of week`), "to", max(rt_export2$`First day of week`), sep = " ")
