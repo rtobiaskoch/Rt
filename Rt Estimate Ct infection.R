@@ -65,6 +65,7 @@ var_data = var_import %>%
 #*#*******************************************************************************
 #will need to read in cases from downloaded csv from covidestim.org 
 #that is put it your working directory
+#be sure to download the latest version
 infect_import = read.csv("estimates.csv")
 infect = infect_import %>%
   select(state,
@@ -255,6 +256,20 @@ rt_export <- rt_list %>%
   filter_at(2:ncol(.), #filter all coloumns but the first column which is the date
             any_vars(!is.na(.))) #remove any rows where there is no data
 
+#*******************************************************************************
+#Rt Plot####
+#*******************************************************************************
+#creates a plot as a quick check to see if values are looking correct
+rt_plot = rt_export %>%
+  select_at(vars(Date, ends_with("_Rt"))) %>%
+  gather("variant", "rt", 2:ncol(.))
+
+
+p <- rt_plot %>%
+  ggplot(aes(x = Date, y = rt, color = variant, fill = variant)) +
+                        geom_line()
+                        
+p                       
 
 #*******************************************************************************
 #REFORMAT####
