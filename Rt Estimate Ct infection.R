@@ -43,7 +43,7 @@ var_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet =
 #####GLAB DATA CLEAN#####
 #*#*******************************************************************************
 
-glab_drop_temp = c("Percent check","infections","Cases Gamma","Cases Alpha",
+glab_drop_temp = c("Percent check","New_cases","Cases Gamma","Cases Alpha",
                    "Cases Delta", "Cases Iota", "Cases Non-VOC/VOI")
 
 #imported at beginning
@@ -254,9 +254,6 @@ rt_export <- rt_list %>%
   ) %>%
   filter_at(2:ncol(.), #filter all coloumns but the first column which is the date
             any_vars(!is.na(.))) #remove any rows where there is no data
-
-
-
 
 
 #*******************************************************************************
