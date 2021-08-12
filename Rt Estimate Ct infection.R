@@ -45,15 +45,8 @@ var_import <- read_sheet("12xYePgxeF3pi0YiGnDCzmBnPPqZEASuobZ1DXeWZ7QA", sheet =
 #####GLAB DATA CLEAN#####
 #*#*******************************************************************************
 
-#drops unnecessary variables from Rt. If original sheet removes these variables this 
-#code may get removed
-glab_drop_temp = c("end_of_week_date","EW","Percent check","New_Cases","Cases Gamma","Cases Alpha",
-                   "Cases Delta", "Cases Iota", "Cases Non-VOC/VOI")
-
 #imported at beginning
 var_data = var_import %>%
-  select(-all_of(glab_drop_temp)
-  ) %>%
   rename(alpha_prop = `Freq Alpha`,
          delta_prop = `Freq Delta`,
          gamma_prop = `Freq Gamma`,
